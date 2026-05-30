@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Power Monitor Dashboard</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-gauges/gauge.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121214;
+            color: #e1e1e6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h2 {
+            text-align: center;
+            color: #00e676;
+            margin-bottom: 5px;
+        }
+        .status-bar {
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 25px;
+            color: #8d8d99;
+        }
+        .status-dot {
+            inline-size: 10px;
+            block-size: 10px;
+            background-color: #ff3d00;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .gauge-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background-color: #1f2024;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 1px solid #2e2f34;
+            text-align: center;
+        }
+        .chart-card {
+            background-color: #1f2024;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 1px solid #2e2f34;
+            block-size: 350px;
+        }
+        .digital-value {
+            font-size: 24px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            color: #ffffff;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>POWER MONITORING PANEL (GPT-4o + MQTT)</h2>
+    <div class="status-bar">
+        <span id="statusDot" class="status-dot"></span>
+        Status Koneksi Broker: <span id="statusText">Terputus</span>
+    </div>
+
+    <div class="gauge-container">
+        <div class="card">
+            <h3>Tegangan (Voltage)</h3>
+            <canvas id="gaugeTegangan"></canvas>
+            <div id="textTegangan" class="digital-value">0.0 V</div>
+        </div>
+
+        <div class="card">
+            <h3>Arus (Current)</h3>
+            <canvas id="gaugeArus"></canvas>
+            <div id="textArus" class="digital-value">0.00 A</div>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h3 style="margin-top: 0; color: #00b0ff; text-align: center;">Grafik Konsumsi Daya (Watt)</h3>
+        <canvas id="chartWatt"></canvas>
+    </div>
+</div>
+
+<script>
+    // =====================================================================
+    // 1. KONFIGURASI MQTT WEBSOCKET
+    // =====================================================================
+    // Menggunakan broker HiveMQ publik jalur aman Websocket (Port 8884)
+    const MQTT_BROKER = "wss://broker.hivemq.com:8884/mqtt"; 
+    const MQTT_TOPIC = "/aisi555/meter";
+
+    const statusDot = document.getElementById("statusDot");
+    const statusText = document.getElementById("statusText");
+
+    console.log("Menghubungkan ke HiveMQ Websocket...");
+    const client = mqtt.connect(MQTT_BROKER);
+
+    client.on('connect', () => {
+        statusDot.style.backgroundColor = "#00e676"; // Hijau jika terhubung
+        statusText.innerText = "Terhubung (Mendengarkan data...)";
+        statusText.style.color = "#00e676";
+        client.subscribe(MQTT_TOPIC);
+    });
+
+    client.on('close', () => {
+        statusDot.style.backgroundColor = "#ff3d00"; // Merah jika putus
+        statusText.innerText = "Terputus dari Broker";
+        statusText.style.color = "#ff3d00";
+    });
+
+    // =====================================================================
+    // 2. INISIALISASI GAUGE METER (CANVAS-GAUGES)
+    // =====================================================================
+    const gaugeV = new RadialGauge({
+        renderTo: 'gaugeTegangan',
+        width: 220,
+        height: 220,
+        units: "Volt",
+        minValue: 0,
+        maxValue: 300,
+        majorTicks: ["0","50","100","150","200","250","300"],
+        minorTicks: 5,
+        strokeTicks: true,
+        highlights: [
+            { "from": 0, "to": 210, "color": "rgba(200, 50, 50, .75)" },
+            { "from": 210, "to": 240, "color": "rgba(50, 200, 50, .75)" },
+            { "from": 240, "to": 300, "color": "rgba(200, 50, 50, .75)" }
+        ],
+        colorPlate: "#25262b",
+        colorMajorTicks: "#f8f9fa",
+        colorMinorTicks: "#ced4da",
+        colorTitle: "#fff",
+        colorUnits: "#ced4da",
+        colorNumbers: "#f8f9fa",
+        valueBox: false,
+        animationRule: "bounce",
+        animationDuration: 500
+    }).draw();
+
+    const gaugeA = new RadialGauge({
+        renderTo: 'gaugeArus',
+        width: 220,
+        height: 220,
+        units: "Ampere",
+        minValue: 0,
+        maxValue: 10,
+        majorTicks: ["0","2","4","6","8","10"],
+        minorTicks: 10,
+        strokeTicks: true,
+        highlights: [
+            { "from": 0, "to": 7, "color": "rgba(50, 200, 50, .75)" },
+            { "from": 7, "to": 10, "color": "rgba(200, 50, 50, .75)" }
+        ],
+        colorPlate: "#25262b",
+        colorMajorTicks: "#f8f9fa",
+        colorMinorTicks: "#ced4da",
+        colorTitle: "#fff",
+        colorUnits: "#ced4da",
+        colorNumbers: "#f8f9fa",
+        valueBox: false,
+        animationRule: "bounce",
+        animationDuration: 500
+    }).draw();
+
+    // =====================================================================
+    // 3. INISIALISASI GRAPH LINE WATT (CHART.JS)
+    // =====================================================================
+    const ctx = document.getElementById('chartWatt').getContext('2d');
+    const MAX_DATA_POINTS = 20; // Batasi grafik hanya menyimpan 20 data terakhir agar tidak berat
+    
+    const wattChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], // Tempat timestamp waktu jepretan
+            datasets: [{
+                label: 'Daya Beban (Watt)',
+                data: [],
+                borderColor: '#00b0ff',
+                backgroundColor: 'rgba(0, 176, 255, 0.1)',
+                borderWidth: 3,
+                tension: 0.3, // Membuat lengkungan grafik menjadi smooth
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    grid: { color: '#2e2f34' },
+                    ticks: { color: '#8d8d99' }
+                },
+                y: { 
+                    grid: { color: '#2e2f34' },
+                    ticks: { color: '#8d8d99' },
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#fff' } }
+            }
+        }
+    });
+
+    // =====================================================================
+    // 4. MENANGKAP PESAN DATA DARI PYTHON & UPDATE DASHBOARD
+    // =====================================================================
+    client.on('message', (topic, message) => {
+        try {
+            // Parsing string JSON dari broker menjadi objek javascript
+            const payload = JSON.parse(message.toString());
+            console.log("Data diterima:", payload);
+
+            // A. Update Nilai Jarum dan Teks Digital
+            gaugeV.value = payload.tegangan;
+            document.getElementById("textTegangan").innerText = payload.tegangan.toFixed(1) + " V";
+
+            gaugeA.value = payload.arus;
+            document.getElementById("textArus").innerText = payload.arus.toFixed(2) + " A";
+
+            // B. Update Grafik Linier Watt
+            const waktuSkarang = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            // Tambahkan data baru di ujung kanan grafik
+            wattChart.data.labels.push(waktuSkarang);
+            wattChart.data.datasets[0].data.push(payload.watt);
+
+            // Geser grafik ke kiri jika datanya sudah melampaui batas maksimum (biar terus rolling)
+            if (wattChart.data.labels.length > MAX_DATA_POINTS) {
+                wattChart.data.labels.shift();
+                wattChart.data.datasets[0].data.shift();
+            }
+
+            // Segarkan render tampilan grafik
+            wattChart.update();
+
+        } catch (e) {
+            console.error("Gagal membaca payload data JSON:", e);
+        }
+    });
+</script>
+
+</body>
+</html>
