@@ -13,8 +13,8 @@ Praktek membuat pembacaan meter melalui CCTV - Python - AI OCR via GPT-4o <br>
 
 <img width="197" height="274" alt="meter" src="https://github.com/user-attachments/assets/e7e61064-ddfb-44c5-80fc-723465427ca5" />
 
-1. Meter pada panel yang umum di gunakan di gedung-gedung adalah meter generic analog yang kemudian akan di catat secara manual oleh petugas tiap hari
-2. Ketika manajemen memerlukan reporting online realtime maka hal ini akan tidak bisa dilakukan
+1. Meter pada panel yang umum di gunakan di gedung-gedung adalah meter generic analog yang kemudian akan di catat secara manual oleh petugas tiap hari pada log
+2. Ketika manajemen memerlukan reporting online - realtime, maka hal ini akan susah diwujudkan
 
 # Solusi dengan memanfaatkan chat AI
 
