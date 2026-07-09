@@ -13,7 +13,7 @@ GITHUB_TOKEN = "xxxxxxxxxxxxxxxxxxxxxxx" # minta ke pak nyoman kalau mau menjala
 URL_API = "https://models.inference.ai.azure.com/chat/completions"
 NAMA_MODEL = "gpt-4o"
 #NAMA_MODEL ="Llama-3.2-11B-Vision-Instruct"
-RTSP_URL = "rtsp://admin:1234567890@192.168.100.153:8554/Streaming/Channels/101"
+RTSP_URL = "rtsp://admin:1234567890@192.168.100.153:8554/Streaming/Channels/101" # sesuaikan dengan stream cctv kamu
 
 # Konfigurasi Broker MQTT (Gunakan EMQX yang stabil sebagai alternatif)
 MQTT_BROKER = "broker.emqx.io"
